@@ -1,0 +1,69 @@
+First we need to read traing data into system
+```r
+training <- read.csv("pml-training.csv")
+
+```
+I took  only columns that are needed for prediction and classification to predict. Assumption is to take only x,z and z values which came from instrumnets that measured them.
+```r
+head(training)
+subTraining <- training[,grep("^gyros|^accel|^magnet|^classe",names(training))]
+```
+
+In order to validate model I splited training data into two subsets. One for training and one for validation
+```r
+inTrain = createDataPartition(training$classe, p = 3/4)[[1]]
+subTraining <- training[,grep("^gyros|^accel|^magnet|^classe",names(training))]
+subTrain = subTraining [ inTrain,]
+subTest = subTraining [-inTrain,]
+```
+
+Again only predictors were filtered from sets
+```r
+subTrainPredictors <- subTrain[,grep("^gyros|^accel|^magnet",names(subTrain))]
+subTestPredictors <- subTest[,grep("^gyros|^accel|^magnet",names(subTest))]
+```
+
+Model was created using gbm method
+```r
+library(caret)
+set.seed(2131)
+myControl <- trainControl(method='cv', number=3, returnResamp='none')
+subTest_model <- train(subTrainPredictors, subTrain$classe, method='gbm', trControl=myControl)
+subPreds <- predict(object=subTest_model, subTestPredictors)
+```
+
+After model was created I did validation on 2nd subset which is test part of traning data
+```r
+confusionMatrix(subPreds, subTest$classe)
+```
+Result was 
+```
+91,27 %
+```
+which for me was good enough.
+
+
+I made same model using whole traning set
+```r
+subTrainingPredictors <- subTraining[,grep("^gyros|^accel|^magnet",names(subTraining))]
+finalModel <- train(subTrainingPredictors, subTraining$classe, method='gbm', trControl=myControl)
+```
+
+and predicted data based on final model
+```r
+testing <- read.csv("pml-testing.csv")
+testingPredictors <- testing[,grep("^gyros|^accel|^magnet",names(testing))]
+pred <- predict(object=finalModel, testingPredictors)
+```
+
+
+```r
+pred
+```
+results:
+```
+[1] A A B A A E D B A A B C B A E E A B B B
+Levels: A B C D E
+
+```
+Which gave 90% accuracy in quiz.
